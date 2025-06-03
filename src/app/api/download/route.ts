@@ -1,6 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
 import axios from 'axios'
 
+type ApiError = {
+  message: string;
+  response?: {
+    data?: {
+      message?: string;
+    };
+  };
+  status?: number;
+}
+
 export async function POST(request: NextRequest) {
   try {
     const { url } = await request.json()
@@ -46,11 +56,12 @@ export async function POST(request: NextRequest) {
       coverUrl,
       success: true
     })
-  } catch (error: any) {
-    console.error('Error downloading TikTok video:', error)
+  } catch (error: unknown) {
+    const err = error as ApiError
+    console.error('Error downloading TikTok video:', err)
     
     // Check for specific error messages
-    const errorMessage = error.response?.data?.message || error.message
+    const errorMessage = err.response?.data?.message || err.message
     
     if (errorMessage === 'Invalid Session') {
       return NextResponse.json(

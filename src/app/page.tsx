@@ -33,13 +33,19 @@ const Modal = ({ isOpen, onClose, children }: { isOpen: boolean, onClose: () => 
   );
 };
 
+interface VideoData {
+  downloadUrl: string;
+  coverUrl?: string;
+  success: boolean;
+}
+
 export default function Home() {
   const [url, setUrl] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [isSessionError, setIsSessionError] = useState(false)
   const [downloadLink, setDownloadLink] = useState('')
-  const [videoData, setVideoData] = useState<any>(null)
+  const [videoData, setVideoData] = useState<VideoData | null>(null)
   const [showApiKeyWarning, setShowApiKeyWarning] = useState(false)
   const [isDownloading, setIsDownloading] = useState(false)
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -63,7 +69,8 @@ export default function Home() {
              data.message.includes('authentication'))) {
           setShowApiKeyWarning(true)
         }
-      } catch (err) {
+      } catch {
+        // Silently handle error
       }
     }
     
@@ -80,7 +87,7 @@ export default function Home() {
       } else {
         setError('Clipboard content is not a valid TikTok URL')
       }
-    } catch (err) {
+    } catch {
       setError('Failed to read from clipboard. Please paste the URL manually.')
     }
   }
@@ -125,8 +132,9 @@ export default function Home() {
       setVideoData(data)
       setDownloadLink(data.downloadUrl)
       setLoading(false)
-    } catch (err: any) {
-      setError(err.message || 'An error occurred while downloading the video')
+    } catch (err: unknown) {
+      const errorMsg = err instanceof Error ? err.message : 'An error occurred while downloading the video'
+      setError(errorMsg)
       setLoading(false)
     }
   }
@@ -137,7 +145,7 @@ export default function Home() {
     try {
       setIsDownloading(true)
       
-      let filename = 'tiktok-video.mp4'
+      const filename = 'tiktok-video.mp4'
       
       const link = document.createElement('a')
       link.href = downloadLink
