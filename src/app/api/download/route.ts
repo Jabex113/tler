@@ -11,9 +11,13 @@ type ApiError = {
   status?: number;
 }
 
+export const runtime = 'edge';
+export const dynamic = 'force-dynamic';
+
 export async function POST(request: NextRequest) {
   try {
-    const { url } = await request.json()
+    const body = await request.json().catch(() => ({}));
+    const { url } = body;
 
     if (!url) {
       return NextResponse.json(
@@ -22,27 +26,30 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Configure for edge runtime
     const options = {
       method: 'GET',
       url: 'https://tiktok-video-downloader-api.p.rapidapi.com/media',
       params: { videoUrl: url },
       headers: {
         'x-rapidapi-key': 'b451e85621msha984aa4d8559d3cp190fdbjsn4782141d3759',
-        'x-rapidapi-host': 'tiktok-video-downloader-api.p.rapidapi.com'
+        'x-rapidapi-host': 'tiktok-video-downloader-api.p.rapidapi.com',
+        'Accept': 'application/json',
+        'Content-Type': 'application/json'
       }
     }
 
-    const response = await axios.request(options)
+    const response = await axios.request(options);
     
-    if (response.data.error) {
+    if (!response.data || response.data.error) {
       return NextResponse.json(
-        { message: response.data.error || 'Failed to download video' },
+        { message: response.data?.error || 'Failed to download video' },
         { status: 400 }
       )
     }
 
-    const downloadUrl = response.data.downloadUrl
-    const coverUrl = response.data.coverUrl
+    const downloadUrl = response.data.downloadUrl;
+    const coverUrl = response.data.coverUrl;
 
     if (!downloadUrl) {
       return NextResponse.json(
@@ -57,11 +64,11 @@ export async function POST(request: NextRequest) {
       success: true
     })
   } catch (error: unknown) {
-    const err = error as ApiError
-    console.error('Error downloading TikTok video:', err)
+    const err = error as ApiError;
+    console.error('Error downloading TikTok video:', err);
     
     // Check for specific error messages
-    const errorMessage = err.response?.data?.message || err.message
+    const errorMessage = err.response?.data?.message || err.message;
     
     if (errorMessage === 'Invalid Session') {
       return NextResponse.json(

@@ -116,17 +116,22 @@ export default function Home() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Accept': 'application/json',
         },
         body: JSON.stringify({ url }),
       })
 
-      const data = await response.json()
+      const data = await response.json().catch(() => ({ message: 'Failed to parse response' }))
 
       if (!response.ok) {
         if (data.isSessionError) {
           setIsSessionError(true)
         }
-        throw new Error(data.message || 'Failed to download video')
+        throw new Error(data.message || `Request failed with status ${response.status}`)
+      }
+
+      if (!data.downloadUrl) {
+        throw new Error('No download URL returned')
       }
 
       setVideoData(data)
