@@ -39,6 +39,49 @@ interface VideoData {
   success: boolean;
 }
 
+// Check if URL is a valid TikTok URL (supporting all formats)
+const isTikTokUrl = (url: string): boolean => {
+  const tiktokDomains = [
+    'tiktok.com',
+    'www.tiktok.com',
+    'm.tiktok.com',
+    'vm.tiktok.com',
+    'vt.tiktok.com',
+    'tiktok'
+  ];
+  
+  try {
+    // For URLs without protocol
+    if (!url.includes('://')) {
+      url = 'https://' + url;
+    }
+    
+    const urlObj = new URL(url);
+    const hostname = urlObj.hostname.toLowerCase();
+    
+    return tiktokDomains.some(domain => hostname.includes(domain));
+  } catch {
+    // If URL parsing fails, check for simple substring matches
+    return tiktokDomains.some(domain => url.toLowerCase().includes(domain));
+  }
+};
+
+// Normalize TikTok URL to ensure API compatibility
+const normalizeTikTokUrl = (url: string): string => {
+  // If URL doesn't have protocol, add it
+  if (!url.includes('://')) {
+    url = 'https://' + url;
+  }
+  
+  // Clean up any tracking parameters
+  try {
+    const urlObj = new URL(url);
+    return urlObj.toString();
+  } catch {
+    return url;
+  }
+};
+
 export default function Home() {
   const [url, setUrl] = useState('')
   const [loading, setLoading] = useState(false)
@@ -80,7 +123,7 @@ export default function Home() {
   const handlePasteFromClipboard = async () => {
     try {
       const text = await navigator.clipboard.readText()
-      if (text.includes('tiktok.com')) {
+      if (isTikTokUrl(text)) {
         setUrl(text)
         setError('')
         setIsSessionError(false)
@@ -100,11 +143,12 @@ export default function Home() {
       return
     }
 
-    if (!url.includes('tiktok.com')) {
+    if (!isTikTokUrl(url)) {
       setError('Please enter a valid TikTok URL')
       return
     }
 
+    const normalizedUrl = normalizeTikTokUrl(url);
     setLoading(true)
     setError('')
     setIsSessionError(false)
@@ -112,16 +156,20 @@ export default function Home() {
     setVideoData(null)
 
     try {
+      console.log("Sending request with URL:", normalizedUrl);
+      
       const response = await fetch('/api/download', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
         },
-        body: JSON.stringify({ url }),
+        body: JSON.stringify({ url: normalizedUrl }),
       })
 
       const data = await response.json().catch(() => ({ message: 'Failed to parse response' }))
+      
+      console.log("API response:", data);
 
       if (!response.ok) {
         if (data.isSessionError) {
@@ -139,6 +187,7 @@ export default function Home() {
       setLoading(false)
     } catch (err: unknown) {
       const errorMsg = err instanceof Error ? err.message : 'An error occurred while downloading the video'
+      console.error("Error:", errorMsg);
       setError(errorMsg)
       setLoading(false)
     }

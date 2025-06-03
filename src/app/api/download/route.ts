@@ -14,14 +14,49 @@ type ApiError = {
 export const runtime = 'edge';
 export const dynamic = 'force-dynamic';
 
+// Check if a URL is a valid TikTok URL
+const isTikTokUrl = (url: string): boolean => {
+  const tiktokDomains = [
+    'tiktok.com',
+    'www.tiktok.com',
+    'm.tiktok.com',
+    'vm.tiktok.com',
+    'vt.tiktok.com'
+  ];
+  
+  try {
+    // For URLs without protocol
+    if (!url.includes('://')) {
+      url = 'https://' + url;
+    }
+    
+    const urlObj = new URL(url);
+    const hostname = urlObj.hostname.toLowerCase();
+    
+    return tiktokDomains.some(domain => hostname.includes(domain));
+  } catch {
+    // If URL parsing fails, check for simple substring matches
+    return tiktokDomains.some(domain => url.toLowerCase().includes(domain));
+  }
+};
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json().catch(() => ({}));
     const { url } = body;
 
+    console.log("API received URL:", url);
+
     if (!url) {
       return NextResponse.json(
         { message: 'TikTok URL is required' },
+        { status: 400 }
+      )
+    }
+
+    if (!isTikTokUrl(url)) {
+      return NextResponse.json(
+        { message: 'Invalid TikTok URL format' },
         { status: 400 }
       )
     }
@@ -39,7 +74,9 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    console.log("Sending request to RapidAPI:", options);
     const response = await axios.request(options);
+    console.log("API response:", response.data);
     
     if (!response.data || response.data.error) {
       return NextResponse.json(
